@@ -76,7 +76,10 @@ def fix_header(file: Path, project_name: str) -> None:
         print(f"File {file} has an invalid header")
         return
     lines[2] = f"** {project_name}\n"
-    lines[4] = f"** {file.name.split('.')[0]}\n"
+    filename = file.name.split('.')[0]
+    if filename.startswith("test_"):
+        filename = f"tests for {filename[5:]}"
+    lines[4] = f"** {filename}\n"
     with open(file, "w") as f:
         f.writelines(lines)
     return
