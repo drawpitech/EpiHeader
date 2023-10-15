@@ -19,5 +19,23 @@
         };
 
         formatter = pkgs.nixpkgs-fmt;
+
+        packages = {
+          EpiHeader =
+            let
+              pypkgs = pkgs.python311Packages;
+            in
+            pypkgs.buildPythonPackage {
+              pname = "EpiHeader";
+              version = "0.0.1";
+              src = ./.;
+
+              nativeBuildInputs = with pkgs; [
+                makeWrapper
+              ];
+            };
+
+          default = self.packages.${system}.EpiHeader;
+        };
       });
 }
