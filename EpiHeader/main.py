@@ -27,7 +27,11 @@ class Args:
             return name
         name = ""
         while not name:
-            name = input("Project name: ")
+            try:
+                name = input("Project name: ")
+            except KeyboardInterrupt:
+                print("Exit")
+                sys.exit(1)
         return name
 
     def __set_files(self) -> list[Path]:
