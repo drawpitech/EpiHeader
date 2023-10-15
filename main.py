@@ -80,8 +80,6 @@ def fix_header(file: Path, project_name: str) -> None:
 
 def main():
     args = Args(sys.argv[1:])
-    print(args.project_name)
-    print(args.files)
     for file in args.files:
         fix_header(file, args.project_name)
 
