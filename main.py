@@ -63,10 +63,27 @@ def usage():
     )
 
 
+def fix_header(file: Path, project_name: str) -> None:
+    if file.suffix != ".h" and file.suffix != ".c":
+        return
+    with open(file, "r") as f:
+        lines = f.readlines()
+    if len(lines) < 5 or not lines[2].startswith("** "):
+        print(f"File {file} has an invalid header")
+        return
+    lines[2] = f"** {project_name}\n"
+    lines[4] = f"** {file.name.split('.')[0]}\n"
+    with open(file, "w") as f:
+        f.writelines(lines)
+    return
+
+
 def main():
     args = Args(sys.argv[1:])
     print(args.project_name)
     print(args.files)
+    for file in args.files:
+        fix_header(file, args.project_name)
 
 
 if __name__ == "__main__":
