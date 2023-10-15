@@ -22,8 +22,8 @@ class Args:
                 usage()
                 sys.exit(1)
             name = self.__args[index + 1]
-            self.__args.pop(index)
             self.__args.pop(index + 1)
+            self.__args.pop(index)
             return name
         name = ""
         while not name:
