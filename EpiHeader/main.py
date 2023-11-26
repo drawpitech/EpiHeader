@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-
+from enum import Enum, auto
 
 class Args:
     def __init__(self, args: list[str]):
@@ -49,10 +49,10 @@ class Args:
         if not files:
             self.__add_folder(Path("."), files)
         return files
-    
+
     def __add_folder(self, folder: Path, files: list[Path]):
         for f in folder.iterdir():
-            if f.is_file() and (f.suffix == ".h" or f.suffix == ".c"):
+            if f.is_file():
                 files.append(f)
             elif f.is_dir():
                 self.__add_folder(f, files)
@@ -67,22 +67,65 @@ def usage():
     )
 
 
-def fix_header(file: Path, project_name: str) -> None:
-    if file.suffix != ".h" and file.suffix != ".c":
+class FileType(Enum):
+    MAKEFILE = auto()
+    SOURCE = auto()
+    SKIPPED = auto()
+
+
+def get_file_type(file: Path) -> FileType:
+    if file.suffix[1:] in { "h", "c" }:
+        return FileType.SOURCE
+
+    if file.suffix[1:] in { "mk", "make" } or file.name == "Makefile":
+        return FileType.MAKEFILE
+
+    return FileType.SKIPPED
+
+
+def _fix_make_headers(
+    file: Path, lines: list[str], project_name: str
+) -> None:
+    if len(lines) < 5 or not lines[2].startswith("## "):
+        print(f"File {file} has an invalid header")
         return
-    with open(file, "r") as f:
-        lines = f.readlines()
+
+    lines[2] = f"## {project_name}\n"
+    lines[4] = f"## {file.name.split('.')[0]}\n"
+
+
+def _fix_source_headers(
+    file: Path, lines: list[str], project_name: str
+) -> None:
     if len(lines) < 5 or not lines[2].startswith("** "):
         print(f"File {file} has an invalid header")
         return
+
     lines[2] = f"** {project_name}\n"
     filename = file.name.split('.')[0]
+
     if filename.startswith("test_"):
         filename = f"tests for {filename[5:]}"
     lines[4] = f"** {filename}\n"
+
+
+def fix_header(file: Path, project_name: str) -> None:
+    filetype = get_file_type(file)
+    if (filetype == FileType.SKIPPED):
+        return
+
+    with open(file, "r") as f:
+        lines = f.readlines()
+
+    if filetype == FileType.SOURCE:
+        _fix_source_headers(file, lines, project_name)
+    elif filetype == FileType.MAKEFILE:
+        _fix_make_headers(file, lines, project_name)
+    else:
+        raise ValueError("Unexpected FileType")
+
     with open(file, "w") as f:
         f.writelines(lines)
-    return
 
 
 def main():
