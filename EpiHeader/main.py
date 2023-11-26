@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 from enum import Enum, auto
 
+
 class Args:
     def __init__(self, args: list[str]):
         self.__args: list[str] = args.copy()
@@ -12,6 +13,7 @@ class Args:
     def __search_help(self) -> None:
         if "--help" not in self.__args:
             return
+
         usage()
         sys.exit(0)
 
@@ -21,10 +23,12 @@ class Args:
             if index + 1 == len(self.__args):
                 usage()
                 sys.exit(1)
+
             name = self.__args[index + 1]
             self.__args.pop(index + 1)
             self.__args.pop(index)
             return name
+
         name = ""
         while not name:
             try:
@@ -36,27 +40,32 @@ class Args:
 
     def __set_files(self) -> list[Path]:
         files: list[Path] = []
+
         for arg in self.__args:
             f = Path(arg)
+
             if f.is_file():
                 files.append(f)
                 continue
+
             if f.is_dir():
                 self.__add_folder(f, files)
                 continue
+
             print(f"File {arg} does not exist")
             sys.exit(1)
-        if not files:
-            self.__add_folder(Path("."), files)
-        return files
 
-    def __add_folder(self, folder: Path, files: list[Path]):
+        return files or self.__add_folder(Path("."), files)
+
+    def __add_folder(self, folder: Path, files: list[Path]) -> list[Path]:
         for f in folder.iterdir():
             if f.is_file():
                 files.append(f)
-            elif f.is_dir():
+
+            elif f.is_dir() and not f.name.startswith('.'):
                 self.__add_folder(f, files)
 
+        return files
 
 def usage():
     print(
