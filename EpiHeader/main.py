@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from enum import Enum, auto
 
 
 class Args:
@@ -12,6 +13,7 @@ class Args:
     def __search_help(self) -> None:
         if "--help" not in self.__args:
             return
+
         usage()
         sys.exit(0)
 
@@ -21,10 +23,12 @@ class Args:
             if index + 1 == len(self.__args):
                 usage()
                 sys.exit(1)
+
             name = self.__args[index + 1]
             self.__args.pop(index + 1)
             self.__args.pop(index)
             return name
+
         name = ""
         while not name:
             try:
@@ -36,27 +40,32 @@ class Args:
 
     def __set_files(self) -> list[Path]:
         files: list[Path] = []
+
         for arg in self.__args:
             f = Path(arg)
+
             if f.is_file():
                 files.append(f)
                 continue
+
             if f.is_dir():
                 self.__add_folder(f, files)
                 continue
+
             print(f"File {arg} does not exist")
             sys.exit(1)
-        if not files:
-            self.__add_folder(Path("."), files)
-        return files
-    
-    def __add_folder(self, folder: Path, files: list[Path]):
+
+        return files or self.__add_folder(Path("."), files)
+
+    def __add_folder(self, folder: Path, files: list[Path]) -> list[Path]:
         for f in folder.iterdir():
-            if f.is_file() and (f.suffix == ".h" or f.suffix == ".c"):
+            if f.is_file():
                 files.append(f)
-            elif f.is_dir():
+
+            elif f.is_dir() and not f.name.startswith('.'):
                 self.__add_folder(f, files)
 
+        return files
 
 def usage():
     print(
@@ -67,22 +76,65 @@ def usage():
     )
 
 
-def fix_header(file: Path, project_name: str) -> None:
-    if file.suffix != ".h" and file.suffix != ".c":
+class FileType(Enum):
+    MAKEFILE = auto()
+    SOURCE = auto()
+    SKIPPED = auto()
+
+
+def get_file_type(file: Path) -> FileType:
+    if file.suffix[1:] in { "h", "c" }:
+        return FileType.SOURCE
+
+    if file.suffix[1:] in { "mk", "make" } or file.name == "Makefile":
+        return FileType.MAKEFILE
+
+    return FileType.SKIPPED
+
+
+def _fix_make_headers(
+    file: Path, lines: list[str], project_name: str
+) -> None:
+    if len(lines) < 5 or not lines[2].startswith("## "):
+        print(f"File {file} has an invalid header")
         return
-    with open(file, "r") as f:
-        lines = f.readlines()
+
+    lines[2] = f"## {project_name}\n"
+    lines[4] = f"## {file.name.split('.')[0]}\n"
+
+
+def _fix_source_headers(
+    file: Path, lines: list[str], project_name: str
+) -> None:
     if len(lines) < 5 or not lines[2].startswith("** "):
         print(f"File {file} has an invalid header")
         return
+
     lines[2] = f"** {project_name}\n"
     filename = file.name.split('.')[0]
+
     if filename.startswith("test_"):
         filename = f"tests for {filename[5:]}"
     lines[4] = f"** {filename}\n"
+
+
+def fix_header(file: Path, project_name: str) -> None:
+    filetype = get_file_type(file)
+    if (filetype == FileType.SKIPPED):
+        return
+
+    with open(file, "r") as f:
+        lines = f.readlines()
+
+    if filetype == FileType.SOURCE:
+        _fix_source_headers(file, lines, project_name)
+    elif filetype == FileType.MAKEFILE:
+        _fix_make_headers(file, lines, project_name)
+    else:
+        raise ValueError("Unexpected FileType")
+
     with open(file, "w") as f:
         f.writelines(lines)
-    return
 
 
 def main():
